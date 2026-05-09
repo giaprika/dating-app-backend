@@ -88,25 +88,45 @@ CREATE INDEX idx_matches_active ON matches(is_active);
 CREATE INDEX idx_matches_matched_at ON matches(matched_at);
 
 -- Messages Table
+-- Messages Table
 CREATE TABLE messages (
   message_id SERIAL PRIMARY KEY,
   match_id INT NOT NULL REFERENCES matches(match_id) ON DELETE CASCADE,
   sender_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
   content TEXT NOT NULL,
   sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  is_read BOOLEAN DEFAULT false,
-  
-  CONSTRAINT valid_sender CHECK (sender_id IN (
-    SELECT user1_id FROM matches WHERE match_id = messages.match_id
-    UNION
-    SELECT user2_id FROM matches WHERE match_id = messages.match_id
-  ))
+  is_read BOOLEAN DEFAULT false
 );
 
 CREATE INDEX idx_messages_match_id ON messages(match_id);
 CREATE INDEX idx_messages_sender_id ON messages(sender_id);
 CREATE INDEX idx_messages_sent_at ON messages(sent_at);
 CREATE INDEX idx_messages_is_read ON messages(match_id, is_read);
+
+-- Validate sender belongs to the match
+CREATE OR REPLACE FUNCTION check_valid_sender()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM matches
+    WHERE match_id = NEW.match_id
+      AND (
+        user1_id = NEW.sender_id OR
+        user2_id = NEW.sender_id
+      )
+  ) THEN
+    RAISE EXCEPTION 'Sender is not part of this match';
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_check_valid_sender
+BEFORE INSERT OR UPDATE ON messages
+FOR EACH ROW
+EXECUTE FUNCTION check_valid_sender();
 
 -- Trigger to update updated_at timestamp for users
 CREATE OR REPLACE FUNCTION update_updated_at_column()

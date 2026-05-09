@@ -1,4 +1,5 @@
 import Match from "../models/Match.js";
+import { User } from "../models/index.js";
 import { Op } from "sequelize";
 
 class MatchRepository {
@@ -8,6 +9,23 @@ class MatchRepository {
 
   async findById(id) {
     return await Match.findByPk(id);
+  }
+
+  async findByIdWithDetails(matchId) {
+    return await Match.findByPk(matchId, {
+      include: [
+        {
+          model: User,
+          as: "user1",
+          attributes: ["user_id", "full_name", "bio", "gender", "birth_date"],
+        },
+        {
+          model: User,
+          as: "user2",
+          attributes: ["user_id", "full_name", "bio", "gender", "birth_date"],
+        },
+      ],
+    });
   }
 
   async findByUsers(userId1, userId2) {
@@ -35,6 +53,39 @@ class MatchRepository {
     });
   }
 
+  async findUserMatchesWithDetails(userId, limit = 10, offset = 0) {
+    const result = await Match.findAndCountAll({
+      where: {
+        [Op.or]: [{ user1_id: userId }, { user2_id: userId }],
+        is_active: true,
+      },
+      include: [
+        {
+          model: User,
+          as: "user1",
+          attributes: ["user_id", "full_name", "bio", "gender", "birth_date"],
+        },
+        {
+          model: User,
+          as: "user2",
+          attributes: ["user_id", "full_name", "bio", "gender", "birth_date"],
+        },
+      ],
+      limit,
+      offset,
+      order: [["matched_at", "DESC"]],
+      subQuery: false,
+      distinct: true,
+    });
+
+    return {
+      matches: result.rows,
+      total: result.count,
+      limit,
+      offset,
+    };
+  }
+
   async findActiveMatches(userId) {
     return await Match.findAll({
       where: {
@@ -55,6 +106,49 @@ class MatchRepository {
       { is_active: false },
       { where: { match_id: id } },
     );
+  }
+
+  async getPendingMatchRequests(userId, limit = 10, offset = 0) {
+    const result = await Match.findAndCountAll({
+      where: {
+        user2_id: userId,
+        is_active: false,
+      },
+      include: [
+        {
+          model: User,
+          as: "user1",
+          attributes: ["user_id", "full_name", "bio", "gender", "birth_date"],
+        },
+        {
+          model: User,
+          as: "user2",
+          attributes: ["user_id", "full_name", "bio", "gender", "birth_date"],
+        },
+      ],
+      limit,
+      offset,
+      order: [["matched_at", "DESC"]],
+      subQuery: false,
+      distinct: true,
+    });
+
+    return {
+      requests: result.rows,
+      total: result.count,
+      limit,
+      offset,
+    };
+  }
+
+  async acceptMatch(matchId) {
+    const match = await Match.findByPk(matchId);
+    if (!match) return null;
+    return await match.update({ is_active: true, matched_at: new Date() });
+  }
+
+  async deleteMatch(matchId) {
+    return await this.deactivate(matchId);
   }
 
   async countMatches(userId) {

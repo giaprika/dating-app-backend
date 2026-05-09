@@ -6,6 +6,9 @@ class UserRepository {
       email: userData.email,
       password_hash: userData.password_hash,
       full_name: userData.full_name,
+      bith_date: userData.bith_date,
+      gender: userData.gender,
+      bio: userData.bio,
     });
   }
 

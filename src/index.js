@@ -3,6 +3,9 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { connectDB, sequelize } from "./config/database.js";
 import authRoutes from "./routes/authRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
+import matchRoutes from "./routes/matchRoutes.js";
+import interactionRoutes from "./routes/interactionRoutes.js";
 import * as models from "./models/index.js";
 
 // Load environment variables
@@ -23,6 +26,9 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/matches", matchRoutes);
+app.use("/api/interactions", interactionRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {

@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_DB: dating_app_db
       POSTGRES_USER: dating_user
-      POSTGRES_PASSWORD: dating_password_123
+      POSTGRES_PASSWORD: dating_password
       POSTGRES_INITDB_ARGS: "--encoding=UTF8"
     ports:
       - "5432:5432"

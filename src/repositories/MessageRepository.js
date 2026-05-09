@@ -1,8 +1,23 @@
 import Message from "../models/Message.js";
+import { User } from "../models/index.js";
+import { Op } from "sequelize";
 
 class MessageRepository {
   async create(messageData) {
     return await Message.create(messageData);
+  }
+
+  async createWithSender(messageData) {
+    const message = await Message.create(messageData);
+    return await Message.findByPk(message.message_id, {
+      include: [
+        {
+          model: User,
+          as: "sender",
+          attributes: ["user_id", "full_name"],
+        },
+      ],
+    });
   }
 
   async findById(id) {
@@ -18,12 +33,37 @@ class MessageRepository {
     });
   }
 
+  async findByMatchWithSender(matchId, limit = 50, offset = 0) {
+    const result = await Message.findAndCountAll({
+      where: { match_id: matchId },
+      include: [
+        {
+          model: User,
+          as: "sender",
+          attributes: ["user_id", "full_name"],
+        },
+      ],
+      limit,
+      offset,
+      order: [["sent_at", "ASC"]],
+      subQuery: false,
+      distinct: true,
+    });
+
+    return {
+      messages: result.rows,
+      total: result.count,
+      limit,
+      offset,
+    };
+  }
+
   async findUnreadMessages(matchId, userId) {
     return await Message.findAll({
       where: {
         match_id: matchId,
         is_read: false,
-        sender_id: { [require("sequelize").Op.ne]: userId },
+        sender_id: { [Op.ne]: userId },
       },
     });
   }
@@ -41,7 +81,8 @@ class MessageRepository {
       {
         where: {
           match_id: matchId,
-          sender_id: { [require("sequelize").Op.ne]: readerId },
+          sender_id: { [Op.ne]: readerId },
+          is_read: false,
         },
       },
     );
@@ -56,7 +97,7 @@ class MessageRepository {
       where: {
         match_id: matchId,
         is_read: false,
-        sender_id: { [require("sequelize").Op.ne]: userId },
+        sender_id: { [Op.ne]: userId },
       },
     });
   }
