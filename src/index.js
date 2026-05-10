@@ -1,11 +1,15 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import { createServer } from "http";
 import { connectDB, sequelize } from "./config/database.js";
+import { initializeSocket } from "./config/socketio.js";
+import { initializeFirebase } from "./config/firebase.js";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import matchRoutes from "./routes/matchRoutes.js";
 import interactionRoutes from "./routes/interactionRoutes.js";
+import deviceTokenRoutes from "./routes/deviceTokenRoutes.js";
 import * as models from "./models/index.js";
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./config/swagger.js";
@@ -14,7 +18,11 @@ import swaggerSpec from "./config/swagger.js";
 dotenv.config();
 
 const app = express();
+const httpServer = createServer(app);
 const PORT = process.env.PORT || 5000;
+
+// Initialize Socket.IO
+const io = initializeSocket(httpServer);
 
 // Middleware
 app.use(
@@ -34,6 +42,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/matches", matchRoutes);
 app.use("/api/interactions", interactionRoutes);
+app.use("/api/devices", deviceTokenRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
@@ -66,8 +75,12 @@ const startServer = async () => {
     await connectDB();
     await sequelize.sync({ alter: false });
 
-    app.listen(PORT, () => {
+    // Initialize Firebase Cloud Messaging
+    await initializeFirebase();
+
+    httpServer.listen(PORT, () => {
       console.log(`Dating App Backend is Running on http://localhost:${PORT}`);
+      console.log(`Socket.IO available at ws://localhost:${PORT}`);
     });
   } catch (error) {
     console.error("Failed to start server:", error);

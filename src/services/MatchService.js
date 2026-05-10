@@ -86,7 +86,19 @@ class MatchService {
       throw new Error("You are not part of this match");
     }
 
-    return await MessageRepository.createWithSender(messageData);
+    const message = await MessageRepository.createWithSender(messageData);
+
+    // Emit real-time notification to receiver
+    const receiverId =
+      match.user1_id === messageData.sender_id
+        ? match.user2_id
+        : match.user1_id;
+    emitToUser(receiverId, "new_message", {
+      message,
+      matchId: messageData.match_id,
+    });
+
+    return message;
   }
 
   async deleteMatch(matchId, currentUserId) {
@@ -152,23 +164,6 @@ class MatchService {
 
   async getUnreadCount(matchId, userId) {
     return await MessageRepository.countUnread(matchId, userId);
-  }
-
-  async sendMessage(messageData) {
-    // Verify match exists and user is part of it
-    const match = await MatchRepository.findById(messageData.match_id);
-    if (!match) {
-      throw new Error("Match not found");
-    }
-
-    const isUserInMatch =
-      match.user1_id === messageData.sender_id ||
-      match.user2_id === messageData.sender_id;
-    if (!isUserInMatch) {
-      throw new Error("You are not part of this match");
-    }
-
-    return await MessageRepository.createWithSender(messageData);
   }
 }
 

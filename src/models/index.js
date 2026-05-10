@@ -4,6 +4,7 @@ import UserPreference from "./UserPreference.js";
 import Interaction from "./Interaction.js";
 import Match from "./Match.js";
 import Message from "./Message.js";
+import DeviceToken from "./DeviceToken.js";
 
 // Define relationships
 User.hasMany(UserPhoto, { foreignKey: "user_id", as: "photos" });
@@ -29,4 +30,15 @@ Match.hasMany(Message, { foreignKey: "match_id", as: "messages" });
 Message.belongsTo(Match, { foreignKey: "match_id" });
 Message.belongsTo(User, { foreignKey: "sender_id", as: "sender" });
 
-export { User, UserPhoto, UserPreference, Interaction, Match, Message };
+User.hasMany(DeviceToken, { foreignKey: "user_id", as: "deviceTokens" });
+DeviceToken.belongsTo(User, { foreignKey: "user_id" });
+
+export {
+  User,
+  UserPhoto,
+  UserPreference,
+  Interaction,
+  Match,
+  Message,
+  DeviceToken,
+};

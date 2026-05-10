@@ -28,6 +28,9 @@ class UserDiscoveryController {
           ResponseUtil.success(result, "Users retrieved successfully", 200),
         );
     } catch (error) {
+      if (error.message === "Cannot filter by your own gender") {
+        return res.status(400).json(ResponseUtil.error(error.message, 400));
+      }
       res.status(500).json(ResponseUtil.error(error.message, 500));
     }
   }

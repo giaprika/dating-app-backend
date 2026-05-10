@@ -5,12 +5,29 @@ class UserDiscoveryRepository {
   async getAvailableUsers(currentUserId, options = {}) {
     const { limit = 10, offset = 0 } = options;
 
-    const result = await User.findAndCountAll({
-      where: {
-        user_id: {
-          [Op.ne]: currentUserId,
-        },
+    // Get current user's gender to filter opposite gender only
+    const currentUser = await User.findByPk(currentUserId, {
+      attributes: ["gender"],
+    });
+    if (!currentUser) {
+      throw new Error("Current user not found");
+    }
+
+    const where = {
+      user_id: {
+        [Op.ne]: currentUserId,
       },
+    };
+
+    // Filter by opposite gender (exclude same gender)
+    if (currentUser.gender && currentUser.gender !== "other") {
+      where.gender = {
+        [Op.ne]: currentUser.gender,
+      };
+    }
+
+    const result = await User.findAndCountAll({
+      where,
       include: [
         {
           model: UserPreference,
@@ -96,6 +113,23 @@ class UserDiscoveryRepository {
   async getUsersByGender(currentUserId, targetGender, options = {}) {
     const { limit = 10, offset = 0 } = options;
 
+    // Get current user's gender to validate request
+    const currentUser = await User.findByPk(currentUserId, {
+      attributes: ["gender"],
+    });
+    if (!currentUser) {
+      throw new Error("Current user not found");
+    }
+
+    // Only allow querying opposite gender
+    if (
+      currentUser.gender &&
+      currentUser.gender !== "other" &&
+      currentUser.gender === targetGender
+    ) {
+      throw new Error("Cannot filter by your own gender");
+    }
+
     const result = await User.findAndCountAll({
       where: {
         user_id: { [Op.ne]: currentUserId },
@@ -155,12 +189,29 @@ class UserDiscoveryRepository {
     const { limit = 10, offset = 0 } = options;
     const usersToExclude = [currentUserId, ...excludeUserIds];
 
-    const result = await User.findAndCountAll({
-      where: {
-        user_id: {
-          [Op.notIn]: usersToExclude,
-        },
+    // Get current user's gender to filter opposite gender only
+    const currentUser = await User.findByPk(currentUserId, {
+      attributes: ["gender"],
+    });
+    if (!currentUser) {
+      throw new Error("Current user not found");
+    }
+
+    const where = {
+      user_id: {
+        [Op.notIn]: usersToExclude,
       },
+    };
+
+    // Filter by opposite gender (exclude same gender)
+    if (currentUser.gender && currentUser.gender !== "other") {
+      where.gender = {
+        [Op.ne]: currentUser.gender,
+      };
+    }
+
+    const result = await User.findAndCountAll({
+      where,
       include: [
         {
           model: UserPreference,
