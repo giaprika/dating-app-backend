@@ -7,6 +7,8 @@ import userRoutes from "./routes/userRoutes.js";
 import matchRoutes from "./routes/matchRoutes.js";
 import interactionRoutes from "./routes/interactionRoutes.js";
 import * as models from "./models/index.js";
+import swaggerUi from "swagger-ui-express";
+import swaggerSpec from "./config/swagger.js";
 
 // Load environment variables
 dotenv.config();
@@ -23,6 +25,9 @@ app.use(
 );
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Swagger documentation
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Routes
 app.use("/api/auth", authRoutes);

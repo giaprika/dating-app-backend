@@ -12,10 +12,13 @@ class UserPreferenceRepository {
   }
 
   async update(userId, updateData) {
-    return await UserPreference.update(updateData, {
-      where: { user_id: userId },
-      returning: true,
-    });
+    const preference = await this.findByUserId(userId);
+
+    if (!preference) {
+      return null;
+    }
+
+    return await preference.update(updateData);
   }
 
   async delete(userId) {
