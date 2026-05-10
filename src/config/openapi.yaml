@@ -1,0 +1,1036 @@
+openapi: 3.0.0
+info:
+  title: Dating App API
+  description: API documentation for the Dating App backend (Express.js, Sequelize)
+  version: 1.0.0
+servers:
+  - url: http://localhost:5000
+    description: Local server
+  - url: /
+    description: Relative path for deployed environments
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/health:
+    get:
+      summary: Health check endpoint
+      tags: [System]
+      security: []
+      responses:
+        "200":
+          description: Server is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "OK"
+                  message:
+                    type: string
+                    example: "Server is running"
+
+  # ==========================================
+  # AUTH ROUTES
+  # ==========================================
+  /api/auth/register:
+    post:
+      summary: Register a new user
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+                full_name:
+                  type: string
+                birth_date:
+                  type: string
+                  format: date
+                gender:
+                  type: string
+                  enum: [male, female, other]
+                bio:
+                  type: string
+      responses:
+        "201":
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/AuthResponseData"
+        "400":
+          description: Validation error or email exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/auth/login:
+    post:
+      summary: Login user
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/AuthResponseData"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/auth/refresh-token:
+    post:
+      summary: Refresh JWT token
+      tags: [Auth]
+      responses:
+        "200":
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/TokenResponseData"
+
+  # ==========================================
+  # DEVICE TOKEN ROUTES
+  # ==========================================
+  /api/devices/register:
+    post:
+      summary: Register device for push notifications
+      tags: [Devices]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_token, device_type]
+              properties:
+                device_token:
+                  type: string
+                device_type:
+                  type: string
+                  enum: [ios, android, web]
+      responses:
+        "201":
+          description: Device registered
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/DeviceToken"
+
+  /api/devices/unregister:
+    post:
+      summary: Unregister a specific device
+      tags: [Devices]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_token]
+              properties:
+                device_token:
+                  type: string
+      responses:
+        "200":
+          description: Device unregistered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /api/devices/unregister-all:
+    post:
+      summary: Unregister all devices for the current user
+      tags: [Devices]
+      responses:
+        "200":
+          description: All devices unregistered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /api/devices/active:
+    get:
+      summary: Get active devices for the current user
+      tags: [Devices]
+      responses:
+        "200":
+          description: Active devices retrieved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/DeviceToken"
+
+  # ==========================================
+  # INTERACTION ROUTES
+  # ==========================================
+  /api/interactions/request/{userId}:
+    post:
+      summary: Request an interaction (LIKE/PASS) with a user
+      tags: [Interactions]
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                action_type:
+                  type: string
+                  enum: [LIKE, PASS]
+                  default: LIKE
+                interaction_mode:
+                  type: string
+                  enum: [traditional, anonymous]
+                  default: traditional
+      responses:
+        "201":
+          description: Interaction recorded
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/InteractionResultData"
+
+  /api/interactions/{interactionId}/accept:
+    post:
+      summary: Accept a pending interaction
+      tags: [Interactions]
+      parameters:
+        - in: path
+          name: interactionId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                interaction_mode:
+                  type: string
+                  enum: [traditional, anonymous]
+      responses:
+        "200":
+          description: Interaction accepted
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/InteractionResultData"
+
+  /api/interactions/requests/sent:
+    get:
+      summary: Get sent interaction requests
+      tags: [Interactions]
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Sent requests retrieved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/InteractionListResponseData"
+
+  /api/interactions/requests/received:
+    get:
+      summary: Get received interaction requests
+      tags: [Interactions]
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Received requests retrieved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/InteractionListResponseData"
+
+  # ==========================================
+  # MATCH ROUTES
+  # ==========================================
+  /api/matches:
+    get:
+      summary: Get user matches
+      tags: [Matches]
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Matches retrieved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/MatchesListResponseData"
+
+  /api/matches/{matchId}:
+    get:
+      summary: Get a specific match with its messages
+      tags: [Matches]
+      parameters:
+        - in: path
+          name: matchId
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Match and messages retrieved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/MatchDetailResponseData"
+        "403":
+          description: Access denied or match inactive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      summary: Delete/Unmatch a match
+      tags: [Matches]
+      parameters:
+        - in: path
+          name: matchId
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Match deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /api/matches/{matchId}/messages:
+    post:
+      summary: Send a message in a match
+      tags: [Matches]
+      parameters:
+        - in: path
+          name: matchId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+      responses:
+        "201":
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Message"
+
+  # ==========================================
+  # USER DISCOVERY ROUTES
+  # ==========================================
+  /api/users/discover:
+    get:
+      summary: Get available users to discover
+      tags: [Users Discovery]
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+        - in: query
+          name: gender
+          schema:
+            type: string
+            enum: [male, female, other]
+      responses:
+        "200":
+          description: Users retrieved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/UsersListResponseData"
+
+  /api/users/recommended:
+    get:
+      summary: Get recommended users
+      tags: [Users Discovery]
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Recommended users retrieved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/UsersListResponseData"
+
+  /api/users/{userId}:
+    get:
+      summary: Get user details by ID
+      tags: [Users Discovery]
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User details retrieved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/UserFormatted"
+
+  # ==========================================
+  # USER PREFERENCES ROUTES
+  # ==========================================
+  /api/users/preferences:
+    get:
+      summary: Get current user preferences
+      tags: [User Preferences]
+      responses:
+        "200":
+          description: Preferences retrieved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/UserPreferences"
+    post:
+      summary: Create user preferences
+      tags: [User Preferences]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                target_gender:
+                  type: string
+                  enum: [male, female, other]
+                min_age:
+                  type: integer
+                max_age:
+                  type: integer
+                max_distance_km:
+                  type: integer
+                anonymous_interests:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "201":
+          description: Preferences created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/UserPreferences"
+    put:
+      summary: Update user preferences
+      tags: [User Preferences]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                target_gender:
+                  type: string
+                  enum: [male, female, other]
+                min_age:
+                  type: integer
+                max_age:
+                  type: integer
+                max_distance_km:
+                  type: integer
+                anonymous_interests:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: Preferences updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/UserPreferences"
+
+  # ==========================================
+  # USER PHOTOS ROUTES
+  # ==========================================
+  /api/users/photos:
+    get:
+      summary: Get all user photos
+      tags: [User Photos]
+      responses:
+        "200":
+          description: Photos retrieved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Photo"
+    post:
+      summary: Upload/Create a new user photo
+      tags: [User Photos]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [image_url]
+              properties:
+                image_url:
+                  type: string
+                is_primary:
+                  type: boolean
+                display_order:
+                  type: integer
+      responses:
+        "201":
+          description: Photo created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Photo"
+
+  /api/users/photos/{photoId}:
+    put:
+      summary: Update user photo details
+      tags: [User Photos]
+      parameters:
+        - in: path
+          name: photoId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                image_url:
+                  type: string
+                is_primary:
+                  type: boolean
+                display_order:
+                  type: integer
+      responses:
+        "200":
+          description: Photo updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Photo"
+    delete:
+      summary: Delete a user photo
+      tags: [User Photos]
+      parameters:
+        - in: path
+          name: photoId
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Photo deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /api/users/photos/{photoId}/primary:
+    put:
+      summary: Set a specific photo as primary (avatar)
+      tags: [User Photos]
+      parameters:
+        - in: path
+          name: photoId
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Photo set as primary
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Photo"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # --- COMMON RESPONSES ---
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        statusCode:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: "Operation successful"
+        data:
+          type: object
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        statusCode:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: "Error message details"
+
+    PaginationInfo:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 10
+        total:
+          type: integer
+          example: 50
+        totalPages:
+          type: integer
+          example: 5
+
+    # --- BASE MODELS ---
+    UserBase:
+      type: object
+      properties:
+        user_id:
+          type: integer
+        email:
+          type: string
+        full_name:
+          type: string
+        birth_date:
+          type: string
+          format: date
+        gender:
+          type: string
+          enum: [male, female, other]
+        bio:
+          type: string
+        default_mode:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    UserFormatted:
+      allOf:
+        - $ref: "#/components/schemas/UserBase"
+        - type: object
+          properties:
+            preferences:
+              $ref: "#/components/schemas/UserPreferences"
+            primary_photo:
+              $ref: "#/components/schemas/Photo"
+
+    Photo:
+      type: object
+      properties:
+        photo_id:
+          type: integer
+        user_id:
+          type: integer
+        image_url:
+          type: string
+        is_primary:
+          type: boolean
+        display_order:
+          type: integer
+          nullable: true
+
+    UserPreferences:
+      type: object
+      properties:
+        preference_id:
+          type: integer
+        target_gender:
+          type: string
+        min_age:
+          type: integer
+        max_age:
+          type: integer
+        max_distance_km:
+          type: integer
+        anonymous_interests:
+          type: array
+          items:
+            type: string
+
+    DeviceToken:
+      type: object
+      properties:
+        token_id:
+          type: integer
+        user_id:
+          type: integer
+        device_token:
+          type: string
+        device_type:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    Interaction:
+      type: object
+      properties:
+        interaction_id:
+          type: integer
+        actor_id:
+          type: integer
+        target_id:
+          type: integer
+        action_type:
+          type: string
+        interaction_mode:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    Match:
+      type: object
+      properties:
+        match_id:
+          type: integer
+        user1_id:
+          type: integer
+        user2_id:
+          type: integer
+        match_mode:
+          type: string
+        is_active:
+          type: boolean
+        matched_at:
+          type: string
+          format: date-time
+        user1:
+          $ref: "#/components/schemas/UserBase"
+        user2:
+          $ref: "#/components/schemas/UserBase"
+
+    Message:
+      type: object
+      properties:
+        message_id:
+          type: integer
+        match_id:
+          type: integer
+        sender_id:
+          type: integer
+        content:
+          type: string
+        is_read:
+          type: boolean
+        sent_at:
+          type: string
+          format: date-time
+        sender:
+          type: object
+          properties:
+            user_id:
+              type: integer
+            full_name:
+              type: string
+
+    # --- SPECIFIC RESPONSE DATA OBJECTS ---
+    AuthResponseData:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/UserBase"
+        token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    TokenResponseData:
+      type: object
+      properties:
+        token:
+          type: string
+
+    UsersListResponseData:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserFormatted"
+        pagination:
+          $ref: "#/components/schemas/PaginationInfo"
+
+    InteractionResultData:
+      type: object
+      properties:
+        interaction:
+          $ref: "#/components/schemas/Interaction"
+        match:
+          $ref: "#/components/schemas/Match"
+          nullable: true
+
+    InteractionListResponseData:
+      type: object
+      properties:
+        requests:
+          type: array
+          items:
+            $ref: "#/components/schemas/Interaction"
+        pagination:
+          $ref: "#/components/schemas/PaginationInfo"
+
+    MatchesListResponseData:
+      type: object
+      properties:
+        matches:
+          type: array
+          items:
+            $ref: "#/components/schemas/Match"
+        pagination:
+          $ref: "#/components/schemas/PaginationInfo"
+
+    MatchDetailResponseData:
+      type: object
+      properties:
+        match:
+          $ref: "#/components/schemas/Match"
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/Message"
+        messagesPagination:
+          $ref: "#/components/schemas/PaginationInfo"
