@@ -3,6 +3,20 @@ import UserPreferenceRepository from "../repositories/UserPreferenceRepository.j
 const VALID_TARGET_GENDERS = new Set(["male", "female", "other"]);
 
 class UserPreferencesService {
+  getDefaultPreferences(userId) {
+    return {
+      preference_id: null,
+      user_id: userId,
+      target_gender: null,
+      min_age: 18,
+      max_age: 99,
+      max_distance_km: 50,
+      anonymous_interests: [],
+      created_at: null,
+      updated_at: null,
+    };
+  }
+
   normalizeAnonymousInterests(value) {
     if (value === undefined) {
       return undefined;
@@ -105,7 +119,7 @@ class UserPreferencesService {
     const preference = await UserPreferenceRepository.findByUserId(userId);
 
     if (!preference) {
-      throw new Error("User preferences not found");
+      return this.getDefaultPreferences(userId);
     }
 
     return this.formatPreference(preference);
