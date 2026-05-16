@@ -1,11 +1,11 @@
 # 💕 Dating App Backend
 
-Backend API cho ứng dụng dating được xây dựng với Node.js 22, Express, MongoDB.
+Backend API cho ứng dụng dating được xây dựng với Node.js 22, Express, PostgreSQL.
 
 ## 📋 Yêu cầu
 
 - Node.js >= 22.0.0
-- MongoDB (local hoặc cloud)
+- PostgreSQL (local hoặc Docker)
 - npm hoặc yarn
 
 ## 🚀 Cài đặt
@@ -28,7 +28,12 @@ Chỉnh sửa `.env` với thông tin của bạn:
 ```
 PORT=5000
 NODE_ENV=development
-MONGODB_URI=mongodb://localhost:27017/dating_app_db
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=dating_app_db
+DB_USER=dating_user
+DB_PASSWORD=dating_password
+DB_DIALECT=postgres
 JWT_SECRET=your_secret_key_here
 JWT_EXPIRE=7d
 CORS_ORIGIN=http://localhost:3000
@@ -49,6 +54,14 @@ npm start
 ```
 
 Server sẽ chạy tại `http://localhost:5000`
+
+### 4. Chạy PostgreSQL bằng Docker
+
+```bash
+docker compose up -d postgres
+```
+
+Nếu bạn muốn reset dữ liệu để script trong `db/init.sql` chạy lại, hãy xóa volume `postgres_data` trước khi khởi động lại container.
 
 ## 📁 Cấu trúc Dự Án
 
@@ -232,6 +245,144 @@ Các features có thể thêm:
 - [ ] Rate limiting
 - [ ] Logging
 - [ ] Tests
+
+## 🧪 Curl test luồng match
+
+### 1. Đăng ký 2 tài khoản
+
+```bash
+curl -X POST http://localhost:5000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "usera@example.com",
+    "password": "123456",
+    "full_name": "User A"
+  }'
+
+curl -X POST http://localhost:5000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "userb@example.com",
+    "password": "123456",
+    "full_name": "User B"
+  }'
+```
+
+### 2. Login để lấy token
+
+```bash
+curl -X POST http://localhost:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "usera@example.com",
+    "password": "123456"
+  }'
+
+curl -X POST http://localhost:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "userb@example.com",
+    "password": "123456"
+  }'
+```
+
+Lưu `token` của 2 user vào biến môi trường:
+
+```bash
+TOKEN_A="paste_token_user_a_here"
+TOKEN_B="paste_token_user_b_here"
+```
+
+### 3. User A gửi like cho User B
+
+> Thay `2` bằng `userId` thật của User B.
+
+```bash
+curl -X POST http://localhost:5000/api/interactions/request/2 \
+  -H "Authorization: Bearer $TOKEN_A" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action_type": "LIKE",
+    "interaction_mode": "traditional"
+  }'
+```
+
+### 4. User B xem danh sách request nhận được
+
+```bash
+curl -X GET "http://localhost:5000/api/interactions/requests/received?page=1&limit=10" \
+  -H "Authorization: Bearer $TOKEN_B"
+```
+
+API sẽ trả về `requests`. Lấy `interaction_id` của request từ User A.
+
+### 5. User B accept request để tạo match
+
+> Thay `1` bằng `interactionId` thật lấy từ bước trên.
+
+```bash
+curl -X POST http://localhost:5000/api/interactions/1/accept \
+  -H "Authorization: Bearer $TOKEN_B" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "interaction_mode": "traditional"
+  }'
+```
+
+Nếu thành công, response sẽ có `data.match`.
+
+### 6. Lấy danh sách match của từng user
+
+```bash
+curl -X GET "http://localhost:5000/api/matches?page=1&limit=10" \
+  -H "Authorization: Bearer $TOKEN_A"
+
+curl -X GET "http://localhost:5000/api/matches?page=1&limit=10" \
+  -H "Authorization: Bearer $TOKEN_B"
+```
+
+Lấy `match_id` từ response.
+
+### 7. Xem chi tiết match và tin nhắn
+
+> Thay `1` bằng `matchId` thật.
+
+```bash
+curl -X GET "http://localhost:5000/api/matches/1?page=1&limit=50" \
+  -H "Authorization: Bearer $TOKEN_A"
+```
+
+### 8. Gửi tin nhắn trong match
+
+```bash
+curl -X POST http://localhost:5000/api/matches/1/messages \
+  -H "Authorization: Bearer $TOKEN_A" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "Chào bạn, rất vui được match nhé!"
+  }'
+```
+
+### 9. User B đọc lại tin nhắn trong match
+
+```bash
+curl -X GET "http://localhost:5000/api/matches/1?page=1&limit=50" \
+  -H "Authorization: Bearer $TOKEN_B"
+```
+
+### 10. Unmatch
+
+```bash
+curl -X DELETE http://localhost:5000/api/matches/1 \
+  -H "Authorization: Bearer $TOKEN_A"
+```
+
+### Ghi chú
+
+- Luồng tạo match hiện tại là: `LIKE` từ user A -> user B `accept` -> tạo `match`.
+- Cũng có thể tạo match tự động nếu 2 phía đều gửi `LIKE` cho nhau.
+- Các endpoint match đều yêu cầu `Authorization: Bearer <token>`.
+- Nếu cần test nhanh, nên lấy `userId`, `interactionId`, `matchId` trực tiếp từ response mỗi bước.
 
 ## 📝 Notes
 

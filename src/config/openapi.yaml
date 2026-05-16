@@ -4,10 +4,30 @@ info:
   description: API documentation for the Dating App backend (Express.js, Sequelize)
   version: 1.0.0
 servers:
-  - url: http://localhost:5000
-    description: Local server
+  - url: http://localhost:8080
+    description: Local development server
+  - url: http://192.168.0.110:8080/
+    description: Alternative local server
   - url: /
     description: Relative path for deployed environments
+
+tags:
+  - name: System
+    description: System and health endpoints
+  - name: Auth
+    description: Authentication endpoints
+  - name: Devices
+    description: Device token management for push notifications
+  - name: Interactions
+    description: Likes, passes, requests, and match status
+  - name: Matches
+    description: Match listing and messaging
+  - name: Users Discovery
+    description: User discovery and profile browsing
+  - name: User Preferences
+    description: Current user preference management
+  - name: User Photos
+    description: Current user photo management
 
 security:
   - bearerAuth: []
@@ -227,6 +247,7 @@ paths:
   /api/interactions/request/{userId}:
     post:
       summary: Request an interaction (LIKE/PASS) with a user
+      description: Creates an interaction for the selected profile. A match only starts after this request returns `data.shouldStartMatchNow = true`, which FE should use to trigger the `Match Now` UI and show the matched profile.
       tags: [Interactions]
       parameters:
         - in: path
@@ -293,6 +314,33 @@ paths:
                       data:
                         $ref: "#/components/schemas/InteractionResultData"
 
+  /api/interactions/{interactionId}/reject:
+    post:
+      summary: Reject a pending interaction
+      tags: [Interactions]
+      parameters:
+        - in: path
+          name: interactionId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                interaction_mode:
+                  type: string
+                  enum: [traditional, anonymous]
+      responses:
+        "200":
+          description: Interaction rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
   /api/interactions/requests/sent:
     get:
       summary: Get sent interaction requests
@@ -348,6 +396,80 @@ paths:
                     properties:
                       data:
                         $ref: "#/components/schemas/InteractionListResponseData"
+
+  /api/interactions/requests/pending-sent:
+    get:
+      summary: Get pending sent likes for FE testing
+      tags: [Interactions]
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Pending sent requests retrieved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/InteractionListResponseData"
+
+  /api/interactions/requests/pending-received:
+    get:
+      summary: Get pending received likes for FE testing
+      tags: [Interactions]
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Pending received requests retrieved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/InteractionListResponseData"
+
+  /api/interactions/status/{userId}:
+    get:
+      summary: Get match status between current user and another user
+      tags: [Interactions]
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Match status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
 
   # ==========================================
   # MATCH ROUTES

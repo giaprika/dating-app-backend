@@ -1,4 +1,5 @@
 import Interaction from "../models/Interaction.js";
+import { User } from "../models/index.js";
 
 class InteractionRepository {
   async create(interactionData) {
@@ -53,6 +54,44 @@ class InteractionRepository {
         target_id: targetId,
         action_type: "LIKE",
       },
+      limit,
+      offset,
+      order: [["created_at", "DESC"]],
+    });
+  }
+
+  async findPendingLikesReceivedWithActor(targetId, limit = 10, offset = 0) {
+    return await Interaction.findAll({
+      where: {
+        target_id: targetId,
+        action_type: "LIKE",
+      },
+      include: [
+        {
+          model: User,
+          as: "actor",
+          attributes: ["user_id", "full_name", "email", "gender", "bio", "birth_date"],
+        },
+      ],
+      limit,
+      offset,
+      order: [["created_at", "DESC"]],
+    });
+  }
+
+  async findPendingLikesSentWithTarget(actorId, limit = 10, offset = 0) {
+    return await Interaction.findAll({
+      where: {
+        actor_id: actorId,
+        action_type: "LIKE",
+      },
+      include: [
+        {
+          model: User,
+          as: "target",
+          attributes: ["user_id", "full_name", "email", "gender", "bio", "birth_date"],
+        },
+      ],
       limit,
       offset,
       order: [["created_at", "DESC"]],

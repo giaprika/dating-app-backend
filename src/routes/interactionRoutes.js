@@ -16,6 +16,12 @@ router.post(
   InteractionController.acceptInteraction.bind(InteractionController),
 );
 
+router.post(
+  "/:interactionId/reject",
+  authenticateToken,
+  InteractionController.rejectInteraction.bind(InteractionController),
+);
+
 router.get(
   "/requests/sent",
   authenticateToken,
@@ -26,6 +32,24 @@ router.get(
   "/requests/received",
   authenticateToken,
   InteractionController.getReceivedRequests.bind(InteractionController),
+);
+
+router.get(
+  "/requests/pending-sent",
+  authenticateToken,
+  InteractionController.getPendingSentRequests.bind(InteractionController),
+);
+
+router.get(
+  "/requests/pending-received",
+  authenticateToken,
+  InteractionController.getPendingReceivedRequests.bind(InteractionController),
+);
+
+router.get(
+  "/status/:userId",
+  authenticateToken,
+  InteractionController.getMatchStatus.bind(InteractionController),
 );
 
 export default router;
