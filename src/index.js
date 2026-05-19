@@ -13,6 +13,7 @@ import deviceTokenRoutes from "./routes/deviceTokenRoutes.js";
 import * as models from "./models/index.js";
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./config/swagger.js";
+import { errorHandler, logger } from "./middlewares/logger.js";
 
 // Load environment variables
 dotenv.config();
@@ -33,6 +34,8 @@ app.use(
 );
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(logger);
+app.use(errorHandler);
 
 // Swagger documentation
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -49,24 +52,12 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "OK", message: "Server is running" });
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.status || 500).json({
-    success: false,
-    statusCode: err.status || 500,
-    message: err.message || "Internal Server Error",
-  });
+// 404
+app.use((req, res) => {
+  res.status(404).json({ message: "Route not found" });
 });
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    statusCode: 404,
-    message: "Route not found",
-  });
-});
+app.use(errorHandler);
 
 // Connect to database and start server
 const startServer = async () => {

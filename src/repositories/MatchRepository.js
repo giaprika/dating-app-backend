@@ -1,5 +1,5 @@
 import Match from "../models/Match.js";
-import { User } from "../models/index.js";
+import { User, UserPhoto } from "../models/index.js";
 import { Op } from "sequelize";
 
 class MatchRepository {
@@ -63,12 +63,30 @@ class MatchRepository {
         {
           model: User,
           as: "user1",
-          attributes: ["user_id", "full_name", "bio", "gender", "birth_date"],
+          attributes: { exclude: ["password_hash"] },
+          include: [
+            {
+              model: UserPhoto,
+              as: "photos",
+              where: { is_primary: true },
+              required: false,
+              attributes: ["photo_id", "image_url", "is_primary"],
+            },
+          ],
         },
         {
           model: User,
           as: "user2",
-          attributes: ["user_id", "full_name", "bio", "gender", "birth_date"],
+          attributes: { exclude: ["password_hash"] },
+          include: [
+            {
+              model: UserPhoto,
+              as: "photos",
+              where: { is_primary: true },
+              required: false,
+              attributes: ["photo_id", "image_url", "is_primary"],
+            },
+          ],
         },
       ],
       limit,

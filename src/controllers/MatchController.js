@@ -10,6 +10,7 @@ class MatchController {
           .status(401)
           .json(ResponseUtil.error("User not authenticated", 401));
       }
+      console.log("currentUserId", currentUserId);
 
       const { page = 1, limit = 10 } = req.query;
 
@@ -119,6 +120,8 @@ class MatchController {
         .status(201)
         .json(ResponseUtil.success(message, "Message sent successfully", 201));
     } catch (error) {
+      console.error("[sendMessage] Error:", error.message);
+      console.error(error.stack);
       if (error.message === "Match not found") {
         return res.status(404).json(ResponseUtil.error(error.message, 404));
       }

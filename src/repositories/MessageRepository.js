@@ -9,15 +9,21 @@ class MessageRepository {
 
   async createWithSender(messageData) {
     const message = await Message.create(messageData);
-    return await Message.findByPk(message.message_id, {
-      include: [
-        {
-          model: User,
-          as: "sender",
-          attributes: ["user_id", "full_name"],
-        },
-      ],
-    });
+
+    try {
+      return await Message.findByPk(message.message_id, {
+        include: [
+          {
+            model: User,
+            as: "sender",
+            attributes: ["user_id", "full_name"],
+          },
+        ],
+      });
+    } catch (err) {
+      console.error("Include sender failed:", err);
+      return message;
+    }
   }
 
   async findById(id) {
@@ -99,6 +105,13 @@ class MessageRepository {
         is_read: false,
         sender_id: { [Op.ne]: userId },
       },
+    });
+  }
+
+  async findLastMessage(matchId) {
+    return await Message.findOne({
+      where: { match_id: matchId },
+      order: [["sent_at", "DESC"]],
     });
   }
 }
