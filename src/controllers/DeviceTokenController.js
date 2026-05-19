@@ -6,6 +6,9 @@ class DeviceTokenController {
     try {
       const userId = req.user?.id;
       const { device_token, device_type } = req.body;
+      console.log("BODY:", req.body);
+      console.log("USER:", req.user);
+      console.log("AUTH:", req.headers.authorization);
 
       if (!userId) {
         return res

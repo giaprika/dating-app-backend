@@ -1,5 +1,8 @@
 import MatchRepository from "../repositories/MatchRepository.js";
 import MessageRepository from "../repositories/MessageRepository.js";
+import UserRepository from "../repositories/UserRepository.js";
+import DeviceTokenRepository from "../repositories/DeviceTokenRepository.js";
+import NotificationService from "./NotificationService.js";
 import { emitToUser } from "../config/socketio.js";
 
 class MatchService {
@@ -115,18 +118,49 @@ class MatchService {
 
     const message = await MessageRepository.createWithSender(messageData);
 
-    // Emit real-time notification to receiver (non-blocking)
+    // Determine receiver
+    const receiverId =
+      match.user1_id === messageData.sender_id
+        ? match.user2_id
+        : match.user1_id;
+
+    // Emit real-time notification to receiver via WebSocket (non-blocking)
     try {
-      const receiverId =
-        match.user1_id === messageData.sender_id
-          ? match.user2_id
-          : match.user1_id;
       emitToUser(receiverId, "new_message", {
         message,
         matchId: messageData.match_id,
       });
     } catch (emitError) {
       console.warn("Failed to emit message notification:", emitError.message);
+    }
+
+    // Send FCM push notification to receiver's devices (non-blocking)
+    try {
+      // Get sender info for notification title
+      const sender = await UserRepository.findById(messageData.sender_id);
+      const senderName = sender?.full_name || "New Message";
+
+      // Get receiver's active device tokens
+      const deviceTokens = await DeviceTokenRepository.findActiveTokensByUserId(
+        receiverId,
+      );
+      const tokens = deviceTokens.map((token) => token.device_token);
+
+      if (tokens.length > 0) {
+        // Send FCM notification with message content
+        await NotificationService.sendMulticastNotification(
+          tokens,
+          senderName,
+          messageData.content,
+          {
+            match_id: messageData.match_id.toString(),
+            sender_id: messageData.sender_id.toString(),
+            message_id: message.message_id?.toString() || "",
+          },
+        );
+      }
+    } catch (fcmError) {
+      console.warn("Failed to send FCM notification:", fcmError.message);
     }
 
     return message;

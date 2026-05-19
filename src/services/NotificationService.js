@@ -23,7 +23,7 @@ class NotificationService {
           priority: "high",
           notification: {
             sound: "default",
-            clickAction: "FLUTTER_NOTIFICATION_CLICK",
+            clickAction: "OPEN_CHAT",
           },
         },
         apns: {
@@ -76,7 +76,7 @@ class NotificationService {
         },
       };
 
-      const response = await admin.messaging().sendMulticast({
+      const response = await admin.messaging().sendEachForMulticast({
         tokens: deviceTokens,
         ...message,
       });
