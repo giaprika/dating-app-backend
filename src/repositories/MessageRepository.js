@@ -42,16 +42,9 @@ class MessageRepository {
   async findByMatchWithSender(matchId, limit = 50, offset = 0) {
     const result = await Message.findAndCountAll({
       where: { match_id: matchId },
-      include: [
-        {
-          model: User,
-          as: "sender",
-          attributes: ["user_id", "full_name"],
-        },
-      ],
       limit,
       offset,
-      order: [["sent_at", "ASC"]],
+      order: [["sent_at", "DESC"]],
       subQuery: false,
       distinct: true,
     });

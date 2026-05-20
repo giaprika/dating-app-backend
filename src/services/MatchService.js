@@ -75,6 +75,14 @@ class MatchService {
       throw new Error("You do not have access to this match");
     }
 
+    // Fetch unread messages and last message (same as getUserMatches)
+    const unreadMessages = await MessageRepository.findUnreadMessages(
+      matchId,
+      currentUserId,
+    );
+    const lastMessage = await MessageRepository.findLastMessage(matchId);
+
+    // Fetch messages with pagination
     const messagesResult = await MessageRepository.findByMatchWithSender(
       matchId,
       limit,
@@ -84,7 +92,10 @@ class MatchService {
     await MessageRepository.markMatchMessagesAsRead(matchId, currentUserId);
 
     return {
-      match: match,
+      ...match.toJSON(),
+      unreadMessages: unreadMessages,
+      unreadCount: unreadMessages.length,
+      lastMessage: lastMessage,
       messages: messagesResult.messages,
       messagesPagination: {
         page,
@@ -141,9 +152,8 @@ class MatchService {
       const senderName = sender?.full_name || "New Message";
 
       // Get receiver's active device tokens
-      const deviceTokens = await DeviceTokenRepository.findActiveTokensByUserId(
-        receiverId,
-      );
+      const deviceTokens =
+        await DeviceTokenRepository.findActiveTokensByUserId(receiverId);
       const tokens = deviceTokens.map((token) => token.device_token);
 
       if (tokens.length > 0) {
