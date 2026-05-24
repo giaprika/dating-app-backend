@@ -1,25 +1,20 @@
 import UserDiscoveryRepository from "../repositories/UserDiscoveryRepository.js";
 import InteractionRepository from "../repositories/InteractionRepository.js";
+import UserRepository from "../repositories/UserRepository.js";
 
 class UserDiscoveryService {
   async getAvailableUsers(currentUserId, queryParams = {}) {
-    const { page = 1, limit = 10, gender } = queryParams;
+    const { page = 1, limit = 10 } = queryParams;
+
     const offset = (page - 1) * limit;
 
-    let result;
-
-    if (gender) {
-      result = await UserDiscoveryRepository.getUsersByGender(
-        currentUserId,
-        gender,
-        { limit, offset },
-      );
-    } else {
-      result = await UserDiscoveryRepository.getAvailableUsers(currentUserId, {
+    const result = await UserDiscoveryRepository.getAvailableUsers(
+      currentUserId,
+      {
         limit,
         offset,
-      });
-    }
+      },
+    );
 
     return {
       users: result.users.map((user) => this._formatUserResponse(user)),
@@ -78,11 +73,16 @@ class UserDiscoveryService {
     }
   }
 
+  async getCurrentUser(userId) {
+    return await UserRepository.findCurrentUserProfile(userId);
+  }
+
   _formatUserResponse(user) {
     const userData = user.toJSON ? user.toJSON() : user;
 
     return {
       user_id: userData.user_id,
+      email: userData.email,
       full_name: userData.full_name,
       birth_date: userData.birth_date,
       gender: userData.gender,
@@ -90,7 +90,7 @@ class UserDiscoveryService {
       default_mode: userData.default_mode,
       created_at: userData.created_at,
       preferences: userData.preferences || null,
-      primary_photo: userData.photos?.[0] || null,
+      photos: userData.photos || null,
     };
   }
 }

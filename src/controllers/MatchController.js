@@ -12,11 +12,12 @@ class MatchController {
       }
       console.log("currentUserId", currentUserId);
 
-      const { page = 1, limit = 10 } = req.query;
+      const { page = 1, limit = 10, search = "" } = req.query;
 
       const result = await MatchService.getUserMatches(currentUserId, {
         page: parseInt(page) || 1,
         limit: parseInt(limit) || 10,
+        search: search.trim(),
       });
 
       res.status(200).json(
@@ -163,6 +164,56 @@ class MatchController {
       }
       if (error.message.includes("do not have access")) {
         return res.status(403).json(ResponseUtil.error(error.message, 403));
+      }
+      res.status(500).json(ResponseUtil.error(error.message, 500));
+    }
+  }
+
+  async matchAnonymous(req, res) {
+    try {
+      const currentUserId = req.user?.id;
+
+      if (!currentUserId) {
+        return res
+          .status(401)
+          .json(ResponseUtil.error("User not authenticated", 401));
+      }
+
+      const result = await MatchService.matchAnonymous(currentUserId);
+
+      if (result.status === "matched") {
+        res
+          .status(201)
+          .json(
+            ResponseUtil.success(
+              result,
+              "Anonymous match found successfully",
+              201,
+            ),
+          );
+      } else {
+        res
+          .status(202)
+          .json(
+            ResponseUtil.success(
+              result,
+              "Added to anonymous matching queue",
+              202,
+            ),
+          );
+      }
+    } catch (error) {
+      console.error("[matchAnonymous] Error:", error.message);
+      console.error(error.stack);
+
+      if (error.message.includes("not found")) {
+        return res.status(404).json(ResponseUtil.error(error.message, 404));
+      }
+      if (
+        error.message.includes("not set") ||
+        error.message.includes("already")
+      ) {
+        return res.status(400).json(ResponseUtil.error(error.message, 400));
       }
       res.status(500).json(ResponseUtil.error(error.message, 500));
     }

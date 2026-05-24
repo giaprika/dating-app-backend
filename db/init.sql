@@ -118,6 +118,31 @@ CREATE INDEX idx_device_tokens_user_id ON device_tokens(user_id);
 CREATE INDEX idx_device_tokens_active ON device_tokens(is_active);
 CREATE INDEX idx_device_tokens_created_at ON device_tokens(created_at);
 
+CREATE TABLE anonymous_matching_queue (
+    queue_id SERIAL PRIMARY KEY,
+
+    actor_id INT NOT NULL
+        REFERENCES users(user_id)
+        ON DELETE CASCADE,
+
+    is_active BOOLEAN DEFAULT true,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    expires_at TIMESTAMP DEFAULT (
+        CURRENT_TIMESTAMP + INTERVAL '30 seconds'
+    )
+);
+
+CREATE INDEX idx_anonymous_queue_active
+ON anonymous_matching_queue(is_active);
+
+CREATE INDEX idx_anonymous_queue_actor
+ON anonymous_matching_queue(actor_id);
+
+CREATE INDEX idx_anonymous_queue_expires
+ON anonymous_matching_queue(expires_at);
+
 -- Validate sender belongs to the match
 CREATE OR REPLACE FUNCTION check_valid_sender()
 RETURNS TRIGGER AS $$

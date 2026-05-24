@@ -1,25 +1,45 @@
-import { User, UserPhoto, UserPreference } from "../models/index.js";
+import {
+  User,
+  UserPhoto,
+  UserPreference,
+  Interaction,
+} from "../models/index.js";
 import { Op } from "sequelize";
 
 class UserDiscoveryRepository {
   async getAvailableUsers(currentUserId, options = {}) {
     const { limit = 10, offset = 0 } = options;
 
-    // Get current user's gender to filter opposite gender only
+    // Get current user
     const currentUser = await User.findByPk(currentUserId, {
       attributes: ["gender"],
     });
+
     if (!currentUser) {
       throw new Error("Current user not found");
     }
 
+    // Get interacted user ids
+    const interactions = await Interaction.findAll({
+      where: {
+        actor_id: currentUserId,
+      },
+      attributes: ["target_id"],
+    });
+
+    const interactedUserIds = interactions.map(
+      (interaction) => interaction.target_id,
+    );
+
+    const excludeUserIds = [currentUserId, ...interactedUserIds];
+
     const where = {
       user_id: {
-        [Op.ne]: currentUserId,
+        [Op.notIn]: excludeUserIds,
       },
     };
 
-    // Filter by opposite gender (exclude same gender)
+    // Opposite gender only
     if (currentUser.gender && currentUser.gender !== "other") {
       where.gender = {
         [Op.ne]: currentUser.gender,
@@ -44,9 +64,16 @@ class UserDiscoveryRepository {
         {
           model: UserPhoto,
           as: "photos",
-          where: { is_primary: true },
-          attributes: ["photo_id", "image_url", "is_primary"],
+          attributes: [
+            "photo_id",
+            "image_url",
+            "is_primary",
+            "display_order",
+            "created_at",
+          ],
           required: false,
+          separate: true,
+          order: [["display_order", "ASC"]],
         },
       ],
       attributes: [

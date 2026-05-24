@@ -25,4 +25,10 @@ router.post(
   AuthController.refreshToken.bind(AuthController),
 );
 
+router.post(
+  "/token-checking",
+  authenticateToken,
+  AuthController.checkToken.bind(AuthController),
+);
+
 export default router;

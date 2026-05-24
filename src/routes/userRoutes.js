@@ -268,6 +268,12 @@ router.put(
 );
 
 router.get(
+  "/me",
+  authenticateToken,
+  UserDiscoveryController.getCurrentUser.bind(UserDiscoveryController),
+);
+
+router.get(
   "/:userId",
   authenticateToken,
   UserDiscoveryController.getUserDetails.bind(UserDiscoveryController),

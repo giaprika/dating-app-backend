@@ -11,14 +11,13 @@ class UserDiscoveryController {
           .json(ResponseUtil.error("User not authenticated", 401));
       }
 
-      const { page = 1, limit = 10, gender } = req.query;
+      const { page = 1, limit = 10 } = req.query;
 
       const result = await UserDiscoveryService.getAvailableUsers(
         currentUserId,
         {
           page: parseInt(page) || 1,
           limit: parseInt(limit) || 10,
-          gender,
         },
       );
 
@@ -28,9 +27,6 @@ class UserDiscoveryController {
           ResponseUtil.success(result, "Users retrieved successfully", 200),
         );
     } catch (error) {
-      if (error.message === "Cannot filter by your own gender") {
-        return res.status(400).json(ResponseUtil.error(error.message, 400));
-      }
       res.status(500).json(ResponseUtil.error(error.message, 500));
     }
   }
@@ -94,6 +90,36 @@ class UserDiscoveryController {
           ResponseUtil.success(
             result,
             "Recommended users retrieved successfully",
+            200,
+          ),
+        );
+    } catch (error) {
+      res.status(500).json(ResponseUtil.error(error.message, 500));
+    }
+  }
+
+  async getCurrentUser(req, res) {
+    try {
+      const currentUserId = req.user?.id;
+
+      if (!currentUserId) {
+        return res
+          .status(401)
+          .json(ResponseUtil.error("User not authenticated", 401));
+      }
+
+      const user = await UserDiscoveryService.getCurrentUser(currentUserId);
+
+      if (!user) {
+        return res.status(404).json(ResponseUtil.error("User not found", 404));
+      }
+
+      res
+        .status(200)
+        .json(
+          ResponseUtil.success(
+            user,
+            "Current user retrieved successfully",
             200,
           ),
         );

@@ -5,15 +5,9 @@ import authenticateToken from "../middlewares/auth.js";
 const router = express.Router();
 
 router.post(
-  "/request/:userId",
+  "/",
   authenticateToken,
-  InteractionController.requestInteraction.bind(InteractionController),
-);
-
-router.post(
-  "/:interactionId/accept",
-  authenticateToken,
-  InteractionController.acceptInteraction.bind(InteractionController),
+  InteractionController.createInteraction.bind(InteractionController),
 );
 
 router.get(

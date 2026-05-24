@@ -71,12 +71,40 @@ class MatchRepository {
     });
   }
 
-  async findUserMatchesWithDetails(userId, limit = 10, offset = 0) {
+  async findUserMatchesWithDetails(
+    userId,
+    limit = 10,
+    offset = 0,
+    search = "",
+  ) {
+    const searchCondition = search
+      ? {
+          [Op.or]: [
+            {
+              "$user1.full_name$": {
+                [Op.iLike]: `%${search}%`,
+              },
+            },
+            {
+              "$user2.full_name$": {
+                [Op.iLike]: `%${search}%`,
+              },
+            },
+          ],
+        }
+      : {};
+
     const result = await Match.findAndCountAll({
       where: {
-        [Op.or]: [{ user1_id: userId }, { user2_id: userId }],
-        is_active: true,
+        [Op.and]: [
+          {
+            [Op.or]: [{ user1_id: userId }, { user2_id: userId }],
+            is_active: true,
+          },
+          searchCondition,
+        ],
       },
+
       include: [
         {
           model: User,
@@ -107,6 +135,7 @@ class MatchRepository {
           ],
         },
       ],
+
       limit,
       offset,
       order: [["matched_at", "DESC"]],
@@ -193,6 +222,28 @@ class MatchRepository {
         [Op.or]: [{ user1_id: userId }, { user2_id: userId }],
         is_active: true,
       },
+    });
+  }
+
+  /**
+   * Create anonymous match between two users
+   * Ensures user1_id < user2_id constraint
+   */
+  async createAnonymousMatch(userId1, userId2) {
+    const [user1, user2] =
+      userId1 < userId2 ? [userId1, userId2] : [userId2, userId1];
+
+    // Check if match already exists
+    const existingMatch = await this.findByUsers(user1, user2);
+    if (existingMatch) {
+      throw new Error("Match already exists between these users");
+    }
+
+    return await Match.create({
+      user1_id: user1,
+      user2_id: user2,
+      match_mode: "anonymous",
+      is_active: true,
     });
   }
 }

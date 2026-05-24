@@ -5,7 +5,7 @@ const VALID_ACTION_TYPES = ["LIKE", "PASS"];
 const VALID_INTERACTION_MODES = ["traditional", "anonymous"];
 
 class InteractionService {
-  async requestInteraction(
+  async createInteraction(
     actorId,
     targetId,
     actionType = "LIKE",
@@ -26,6 +26,7 @@ class InteractionService {
       throw new Error("Invalid interaction mode");
     }
 
+    // Create/update interaction
     const interaction = await InteractionRepository.upsert(
       actorId,
       targetId,
@@ -33,76 +34,42 @@ class InteractionService {
       interactionMode,
     );
 
-    const reverseInteraction = await InteractionRepository.findByActorAndTarget(
-      targetId,
-      actorId,
-    );
-
-    const [user1Id, user2Id] =
-      actorId < targetId ? [actorId, targetId] : [targetId, actorId];
-
     let match = null;
-    if (actionType === "LIKE" && reverseInteraction?.action_type === "LIKE") {
-      match = await this._createOrActivateMatch(
-        user1Id,
-        user2Id,
-        interactionMode,
-      );
+
+    // Only create match if LIKE
+    if (actionType === "LIKE") {
+      const reverseInteraction =
+        await InteractionRepository.findLikeInteraction(targetId, actorId);
+
+      // Mutual LIKE => create match
+      if (reverseInteraction) {
+        const [user1Id, user2Id] =
+          actorId < targetId ? [actorId, targetId] : [targetId, actorId];
+
+        match = await this._createOrActivateMatch(
+          user1Id,
+          user2Id,
+          interactionMode,
+        );
+      }
     }
 
+    // PASS => deactivate existing match
     if (actionType === "PASS") {
+      const [user1Id, user2Id] =
+        actorId < targetId ? [actorId, targetId] : [targetId, actorId];
+
       const existingMatch = await MatchRepository.findByUsers(user1Id, user2Id);
+
       if (existingMatch?.is_active) {
         match = await MatchRepository.deactivate(existingMatch.match_id);
       }
     }
 
-    return { interaction, match };
-  }
-
-  async acceptInteraction(
-    interactionId,
-    currentUserId,
-    interactionMode = "traditional",
-  ) {
-    const interaction = await InteractionRepository.findById(interactionId);
-    if (!interaction) {
-      throw new Error("Interaction not found");
-    }
-
-    if (interaction.target_id !== currentUserId) {
-      throw new Error("You can only accept interactions addressed to you");
-    }
-
-    if (interaction.action_type !== "LIKE") {
-      throw new Error("Only LIKE interactions can be accepted");
-    }
-
-    interactionMode =
-      interactionMode || interaction.interaction_mode || "traditional";
-    if (!VALID_INTERACTION_MODES.includes(interactionMode)) {
-      throw new Error("Invalid interaction mode");
-    }
-
-    const replyInteraction = await InteractionRepository.upsert(
-      currentUserId,
-      interaction.actor_id,
-      "LIKE",
-      interactionMode,
-    );
-
-    const [user1Id, user2Id] =
-      currentUserId < interaction.actor_id
-        ? [currentUserId, interaction.actor_id]
-        : [interaction.actor_id, currentUserId];
-
-    const match = await this._createOrActivateMatch(
-      user1Id,
-      user2Id,
-      interactionMode,
-    );
-
-    return { interaction: replyInteraction, match };
+    return {
+      interaction,
+      match,
+    };
   }
 
   async getSentRequests(userId, options = {}) {
@@ -117,15 +84,19 @@ class InteractionService {
 
     const requests = [];
     for (const interaction of interactions) {
-      const [user1Id, user2Id] =
-        interaction.actor_id < interaction.target_id
-          ? [interaction.actor_id, interaction.target_id]
-          : [interaction.target_id, interaction.actor_id];
+      // Kiểm tra target user đã phản hồi chưa
+      const respondedInteraction =
+        await InteractionRepository.findByActorAndTarget(
+          interaction.target_id,
+          userId,
+        );
 
-      const match = await MatchRepository.findByUsers(user1Id, user2Id);
-      if (!match?.is_active) {
-        requests.push(interaction);
+      // Nếu đã phản hồi thì bỏ qua
+      if (respondedInteraction) {
+        continue;
       }
+
+      requests.push(interaction);
     }
 
     return { requests, total: requests.length, limit, offset };
@@ -143,18 +114,27 @@ class InteractionService {
 
     const requests = [];
     for (const interaction of interactions) {
-      const [user1Id, user2Id] =
-        interaction.actor_id < interaction.target_id
-          ? [interaction.actor_id, interaction.target_id]
-          : [interaction.target_id, interaction.actor_id];
+      // Kiểm tra current user đã phản hồi chưa
+      const respondedInteraction =
+        await InteractionRepository.findByActorAndTarget(
+          userId, // current user
+          interaction.actor_id, // người gửi request
+        );
 
-      const match = await MatchRepository.findByUsers(user1Id, user2Id);
-      if (!match?.is_active) {
-        requests.push(interaction);
+      // Nếu đã phản hồi thì bỏ qua
+      if (respondedInteraction) {
+        continue;
       }
+
+      requests.push(interaction);
     }
 
-    return { requests, total: requests.length, limit, offset };
+    return {
+      requests,
+      total: requests.length,
+      limit,
+      offset,
+    };
   }
 
   async _createOrActivateMatch(user1Id, user2Id, matchMode) {

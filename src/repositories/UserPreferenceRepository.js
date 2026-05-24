@@ -1,8 +1,8 @@
 import UserPreference from "../models/UserPreference.js";
 
 class UserPreferenceRepository {
-  async create(preferencesData) {
-    return await UserPreference.create(preferencesData);
+  async create(preferencesData, transaction) {
+    return await UserPreference.create(preferencesData, { transaction });
   }
 
   async findByUserId(userId) {

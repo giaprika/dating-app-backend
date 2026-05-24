@@ -1,8 +1,8 @@
 import UserPhoto from "../models/UserPhoto.js";
 
 class UserPhotoRepository {
-  async create(photoData) {
-    return await UserPhoto.create(photoData);
+  async create(photoData, transaction) {
+    return await UserPhoto.create(photoData, { transaction });
   }
 
   async findById(id) {

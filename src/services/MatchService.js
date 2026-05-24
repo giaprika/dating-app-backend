@@ -2,6 +2,8 @@ import MatchRepository from "../repositories/MatchRepository.js";
 import MessageRepository from "../repositories/MessageRepository.js";
 import UserRepository from "../repositories/UserRepository.js";
 import DeviceTokenRepository from "../repositories/DeviceTokenRepository.js";
+import UserPreferenceRepository from "../repositories/UserPreferenceRepository.js";
+import AnonymousMatchingQueueRepository from "../repositories/AnonymousMatchingQueueRepository.js";
 import NotificationService from "./NotificationService.js";
 import { emitToUser } from "../config/socketio.js";
 
@@ -21,13 +23,14 @@ class MatchService {
   }
 
   async getUserMatches(userId, options = {}) {
-    const { page = 1, limit = 10 } = options;
+    const { page = 1, limit = 10, search = "" } = options;
     const offset = (page - 1) * limit;
 
     const result = await MatchRepository.findUserMatchesWithDetails(
       userId,
       limit,
       offset,
+      search,
     );
 
     // Fetch unread messages and last message for each match
@@ -174,6 +177,148 @@ class MatchService {
     }
 
     return message;
+  }
+
+  /**
+   * Calculate match score based on common interests
+   * @param {string} interests1 - Comma-separated interests
+   * @param {string} interests2 - Comma-separated interests
+   * @returns {number} - Number of common interests
+   */
+  calculateMatchScore(interests1, interests2) {
+    if (!interests1 || !interests2) return 0;
+
+    const set1 = new Set(
+      interests1
+        .split(",")
+        .map((i) => i.trim().toLowerCase())
+        .filter((i) => i),
+    );
+    const set2 = new Set(
+      interests2
+        .split(",")
+        .map((i) => i.trim().toLowerCase())
+        .filter((i) => i),
+    );
+
+    let commonCount = 0;
+    for (let interest of set1) {
+      if (set2.has(interest)) {
+        commonCount++;
+      }
+    }
+    return commonCount;
+  }
+
+  /**
+   * Handle anonymous matching request
+   * TH1: If there's an active queue entry matching preferences -> create match
+   * TH2: If no match found -> add current user to queue
+   */
+  async matchAnonymous(currentUserId) {
+    // Get current user details
+    const currentUser = await UserRepository.findById(currentUserId);
+    if (!currentUser) {
+      throw new Error("User not found");
+    }
+
+    // Get current user preferences
+    const currentUserPrefs =
+      await UserPreferenceRepository.findByUserId(currentUserId);
+    if (!currentUserPrefs || !currentUserPrefs.target_gender) {
+      throw new Error(
+        "User preferences not set or target gender not specified",
+      );
+    }
+
+    // Check if user already has an active queue entry
+    const existingQueueEntry =
+      await AnonymousMatchingQueueRepository.findByActorId(currentUserId);
+    if (existingQueueEntry) {
+      throw new Error(
+        "You already have an active queue entry. Please wait for a match.",
+      );
+    }
+
+    // Try to find a matching queue entry
+    const allQueues =
+      await AnonymousMatchingQueueRepository.findAllMatchingQueues(
+        currentUserId,
+      );
+
+    let bestMatch = null;
+    let bestScore = -1;
+
+    for (const queueEntry of allQueues) {
+      // current user thích giới tính đối phương
+      const currentLikesTarget =
+        currentUserPrefs.target_gender === queueEntry.gender;
+
+      // đối phương thích giới tính current user
+      const targetLikesCurrent =
+        queueEntry.target_gender === currentUser.gender;
+
+      if (!currentLikesTarget || !targetLikesCurrent) {
+        continue;
+      }
+
+      const matchScore = this.calculateMatchScore(
+        currentUserPrefs.anonymous_interests || "",
+        queueEntry.anonymous_interests || "",
+      );
+
+      if (matchScore > bestScore) {
+        bestScore = matchScore;
+        bestMatch = {
+          ...queueEntry,
+          matchScore,
+        };
+      }
+    }
+
+    if (bestMatch) {
+      const match = await MatchRepository.createAnonymousMatch(
+        currentUserId,
+        bestMatch.actor_id,
+      );
+      await AnonymousMatchingQueueRepository.deleteByActorId(matchedUserId);
+      const matchDetails = await MatchRepository.findByIdWithDetails(
+        match.match_id,
+      );
+
+      // Emit real-time notification to matched user
+      try {
+        emitToUser(matchedUserId, "anonymous_match", {
+          match: matchDetails,
+          matchScore: matchScore,
+        });
+      } catch (emitError) {
+        console.warn(
+          "Failed to emit anonymous match notification:",
+          emitError.message,
+        );
+      }
+      return {
+        status: "matched",
+        match: matchDetails,
+        matchScore: matchScore,
+      };
+    }
+
+    // Case 2: No match found or match already exists - Add to queue
+    const queueEntry = await AnonymousMatchingQueueRepository.create({
+      actor_id: currentUserId,
+      is_active: true,
+      created_at: new Date(),
+      expires_at: new Date(Date.now() + 30 * 1000), // 30 seconds expiry
+    });
+
+    return {
+      status: "queued",
+      queueId: queueEntry.queue_id,
+      message:
+        "Added to anonymous matching queue. Waiting for a match (30 seconds timeout)...",
+    };
   }
 }
 

@@ -4,6 +4,7 @@ import authenticateToken from "../middlewares/auth.js";
 
 const router = express.Router();
 
+// GET routes
 router.get(
   "/",
   authenticateToken,
@@ -16,12 +17,20 @@ router.get(
   MatchController.getMatchWithMessages.bind(MatchController),
 );
 
+// POST routes - specific routes first
+router.post(
+  "/anonymous",
+  authenticateToken,
+  MatchController.matchAnonymous.bind(MatchController),
+);
+
 router.post(
   "/:matchId/messages",
   authenticateToken,
   MatchController.sendMessage.bind(MatchController),
 );
 
+// DELETE routes
 router.delete(
   "/:matchId",
   authenticateToken,
