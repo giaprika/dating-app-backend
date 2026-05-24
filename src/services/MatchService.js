@@ -152,12 +152,14 @@ class MatchService {
     try {
       // Get sender info for notification title
       const sender = await UserRepository.findById(messageData.sender_id);
-      const senderName = sender?.full_name || "New Message";
+      const senderName =
+        match.match_mode === "anonymous" ? "Ẩn danh" : sender.full_name;
 
       // Get receiver's active device tokens
       const deviceTokens =
         await DeviceTokenRepository.findActiveTokensByUserId(receiverId);
       const tokens = deviceTokens.map((token) => token.device_token);
+      console.log("tokens:", tokens);
 
       if (tokens.length > 0) {
         // Send FCM notification with message content
@@ -281,7 +283,9 @@ class MatchService {
         currentUserId,
         bestMatch.actor_id,
       );
-      await AnonymousMatchingQueueRepository.deleteByActorId(matchedUserId);
+      await AnonymousMatchingQueueRepository.deleteByActorId(
+        bestMatch.actor_id,
+      );
       const matchDetails = await MatchRepository.findByIdWithDetails(
         match.match_id,
       );
@@ -290,7 +294,6 @@ class MatchService {
       try {
         emitToUser(matchedUserId, "anonymous_match", {
           match: matchDetails,
-          matchScore: matchScore,
         });
       } catch (emitError) {
         console.warn(
@@ -301,7 +304,7 @@ class MatchService {
       return {
         status: "matched",
         match: matchDetails,
-        matchScore: matchScore,
+        matchScore: bestMatch.matchScore,
       };
     }
 
