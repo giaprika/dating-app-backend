@@ -66,6 +66,62 @@ class UserController {
       res.status(500).json(ResponseUtil.error(error.message, 500));
     }
   }
+
+  async getBeginnerStatus(req, res) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res
+          .status(401)
+          .json(ResponseUtil.error("User not authenticated", 401));
+      }
+
+      const isBeginer = await UserService.getBeginnerStatus(userId);
+
+      res
+        .status(200)
+        .json(
+          ResponseUtil.success(
+            { is_beginer: isBeginer },
+            "Beginner status retrieved successfully",
+            200,
+          ),
+        );
+    } catch (error) {
+      if (error.message === "User not found") {
+        return res.status(404).json(ResponseUtil.error(error.message, 404));
+      }
+      res.status(500).json(ResponseUtil.error(error.message, 500));
+    }
+  }
+
+  async finishOnboarding(req, res) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res
+          .status(401)
+          .json(ResponseUtil.error("User not authenticated", 401));
+      }
+
+      const newStatus = await UserService.markBeginnerAsFalse(userId);
+
+      res
+        .status(200)
+        .json(
+          ResponseUtil.success(
+            { is_beginer: newStatus },
+            "Updated beginner status successfully",
+            200,
+          ),
+        );
+    } catch (error) {
+      if (error.message === "User not found") {
+        return res.status(404).json(ResponseUtil.error(error.message, 404));
+      }
+      res.status(500).json(ResponseUtil.error(error.message, 500));
+    }
+  }
 }
 
 export default new UserController();

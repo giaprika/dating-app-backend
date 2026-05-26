@@ -42,6 +42,10 @@ const User = sequelize.define(
       type: DataTypes.ENUM("traditional", "anonymous"),
       defaultValue: "traditional",
     },
+    is_beginer: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true,
+    },
     created_at: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,

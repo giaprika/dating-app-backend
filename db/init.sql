@@ -20,6 +20,9 @@ CREATE TABLE users (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE users 
+ADD COLUMN is_beginer BOOLEAN DEFAULT true;
+
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_created_at ON users(created_at);
 

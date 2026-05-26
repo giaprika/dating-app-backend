@@ -95,4 +95,16 @@ router.put(
   UserController.updateProfile.bind(UserController),
 );
 
+router.get(
+  "/onboarding/status",
+  authenticateToken,
+  UserController.getBeginnerStatus.bind(UserController),
+);
+
+router.put(
+  "/onboarding/complete",
+  authenticateToken,
+  UserController.finishOnboarding.bind(UserController),
+);
+
 export default router;

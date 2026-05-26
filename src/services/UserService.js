@@ -78,6 +78,26 @@ class UserService {
 
     return plainAvatar;
   }
+
+  async getBeginnerStatus(userId) {
+    const user = await UserRepository.findById(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    return user.is_beginer;
+  }
+
+  async markBeginnerAsFalse(userId) {
+    const user = await UserRepository.findById(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const updatedUser = await UserRepository.update(userId, {
+      is_beginer: false,
+    });
+    return updatedUser.is_beginer;
+  }
 }
 
 export default new UserService();
