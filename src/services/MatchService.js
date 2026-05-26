@@ -131,6 +131,10 @@ class MatchService {
     }
 
     const message = await MessageRepository.createWithSender(messageData);
+    await MessageRepository.markMatchMessagesAsRead(
+      messageData.match_id,
+      messageData.sender_id,
+    );
 
     // Determine receiver
     const receiverId =
@@ -292,8 +296,9 @@ class MatchService {
 
       // Emit real-time notification to matched user
       try {
-        emitToUser(matchedUserId, "anonymous_match", {
+        emitToUser(bestMatch.actor_id, "anonymous_match", {
           match: matchDetails,
+          matchScore: bestMatch.matchScore,
         });
       } catch (emitError) {
         console.warn(
