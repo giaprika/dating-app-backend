@@ -59,7 +59,7 @@ class InteractionController {
       res.status(200).json(
         ResponseUtil.success(
           {
-            requests: result.requests,
+            users: result.users, // Đổi từ requests thành users giống endpoint received
             pagination: {
               page: Math.ceil(result.offset / result.limit) + 1,
               limit: result.limit,
@@ -97,7 +97,7 @@ class InteractionController {
       res.status(200).json(
         ResponseUtil.success(
           {
-            requests: result.requests,
+            users: result.users, // Đổi key từ requests thành users
             pagination: {
               page: Math.ceil(result.offset / result.limit) + 1,
               limit: result.limit,

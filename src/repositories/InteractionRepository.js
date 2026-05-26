@@ -2,6 +2,7 @@ import { Sequelize } from "sequelize";
 import Interaction from "../models/Interaction.js";
 import User from "../models/User.js";
 import UserPhoto from "../models/UserPhoto.js";
+import UserPreference from "../models/UserPreference.js";
 
 class InteractionRepository {
   async create(interactionData) {
@@ -47,25 +48,44 @@ class InteractionRepository {
       include: [
         {
           model: User,
-          as: "actor",
-
+          as: "target",
           attributes: [
             "user_id",
+            "email",
             "full_name",
-            "bio",
             "birth_date",
             "gender",
-
-            [
-              Sequelize.literal(`(
-                SELECT image_url
-                FROM user_photos
-                WHERE user_photos.user_id = actor.user_id
-                  AND user_photos.is_primary = true
-                LIMIT 1
-              )`),
-              "avatar_url",
-            ],
+            "bio",
+            "default_mode",
+            "created_at",
+          ],
+          include: [
+            {
+              model: UserPreference,
+              as: "preferences",
+              attributes: [
+                "preference_id",
+                "target_gender",
+                "min_age",
+                "max_age",
+                "max_distance_km",
+                "anonymous_interests",
+              ],
+            },
+            {
+              model: UserPhoto,
+              as: "photos",
+              attributes: [
+                "photo_id",
+                "image_url",
+                "is_primary",
+                "display_order",
+                "created_at",
+              ],
+              required: false,
+              separate: true,
+              order: [["display_order", "ASC"]],
+            },
           ],
         },
       ],
@@ -81,36 +101,53 @@ class InteractionRepository {
         target_id: targetId,
         action_type: "LIKE",
       },
-
       include: [
         {
           model: User,
           as: "actor",
-
           attributes: [
             "user_id",
+            "email",
             "full_name",
-            "bio",
             "birth_date",
             "gender",
-
-            [
-              Sequelize.literal(`(
-                SELECT image_url
-                FROM user_photos
-                WHERE user_photos.user_id = actor.user_id
-                  AND user_photos.is_primary = true
-                LIMIT 1
-              )`),
-              "avatar_url",
-            ],
+            "bio",
+            "default_mode",
+            "created_at",
+          ],
+          // Include giống hệt file UserDiscoveryRepository
+          include: [
+            {
+              model: UserPreference,
+              as: "preferences",
+              attributes: [
+                "preference_id",
+                "target_gender",
+                "min_age",
+                "max_age",
+                "max_distance_km",
+                "anonymous_interests",
+              ],
+            },
+            {
+              model: UserPhoto,
+              as: "photos",
+              attributes: [
+                "photo_id",
+                "image_url",
+                "is_primary",
+                "display_order",
+                "created_at",
+              ],
+              required: false,
+              separate: true,
+              order: [["display_order", "ASC"]],
+            },
           ],
         },
       ],
-
       limit,
       offset,
-
       order: [["created_at", "DESC"]],
     });
   }

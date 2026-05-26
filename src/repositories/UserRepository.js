@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import UserPhoto from "../models/UserPhoto.js";
 import UserPreference from "../models/UserPreference.js";
+import { Sequelize } from "sequelize";
 
 class UserRepository {
   async create(userData, transaction) {
@@ -22,7 +23,23 @@ class UserRepository {
   }
 
   async findByEmail(email) {
-    return await User.findOne({ where: { email } });
+    return await User.findOne({
+      where: { email },
+      attributes: {
+        include: [[Sequelize.col("photos.image_url"), "avatar_url"]],
+      },
+      include: [
+        {
+          model: UserPhoto,
+          as: "photos",
+          required: false,
+          where: {
+            is_primary: true,
+          },
+          attributes: [],
+        },
+      ],
+    });
   }
 
   async findByEmailWithoutPassword(email) {

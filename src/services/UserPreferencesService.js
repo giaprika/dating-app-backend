@@ -27,7 +27,7 @@ class UserPreferencesService {
     }
 
     if (Array.isArray(value)) {
-      return JSON.stringify(value);
+      return value.join(", ");
     }
 
     return value;

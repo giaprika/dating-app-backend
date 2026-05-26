@@ -61,7 +61,10 @@ class AuthService {
       const token = JwtUtil.generateToken(user.user_id);
 
       return {
-        user: user.toJSON(),
+        user: {
+          ...user.toJSON(),
+          avatar_url: userData.image_url || null,
+        },
         token,
       };
     } catch (error) {

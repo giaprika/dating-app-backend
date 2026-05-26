@@ -82,24 +82,32 @@ class InteractionService {
       offset,
     );
 
-    const requests = [];
+    const users = []; // Đổi từ requests sang users để đồng bộ cấu trúc
     for (const interaction of interactions) {
-      // Kiểm tra target user đã phản hồi chưa
+      // Kiểm tra target user đã phản hồi lại current user chưa
       const respondedInteraction =
         await InteractionRepository.findByActorAndTarget(
-          interaction.target_id,
-          userId,
+          interaction.target_id, // Đối phương
+          userId, // Bản thân
         );
 
-      // Nếu đã phản hồi thì bỏ qua
+      // Nếu đối phương đã phản hồi (LIKE/PASS) thì bỏ qua
       if (respondedInteraction) {
         continue;
       }
 
-      requests.push(interaction);
+      // Lấy thông tin user (target) nhận được like ra và format lại giống received
+      if (interaction.target) {
+        users.push(this._formatUserResponse(interaction.target));
+      }
     }
 
-    return { requests, total: requests.length, limit, offset };
+    return {
+      users, // Trả về danh sách object User đã format
+      total: users.length,
+      limit,
+      offset,
+    };
   }
 
   async getReceivedRequests(userId, options = {}) {
@@ -112,7 +120,7 @@ class InteractionService {
       offset,
     );
 
-    const requests = [];
+    const users = [];
     for (const interaction of interactions) {
       // Kiểm tra current user đã phản hồi chưa
       const respondedInteraction =
@@ -126,14 +134,35 @@ class InteractionService {
         continue;
       }
 
-      requests.push(interaction);
+      // Lấy thông tin user (actor) đã gửi like ra và format lại
+      if (interaction.actor) {
+        users.push(this._formatUserResponse(interaction.actor));
+      }
     }
 
     return {
-      requests,
-      total: requests.length,
+      users, // Đổi từ requests sang users
+      total: users.length,
       limit,
       offset,
+    };
+  }
+
+  // Thêm hàm format này vào InteractionService
+  _formatUserResponse(user) {
+    const userData = user.toJSON ? user.toJSON() : user;
+
+    return {
+      user_id: userData.user_id,
+      email: userData.email,
+      full_name: userData.full_name,
+      birth_date: userData.birth_date,
+      gender: userData.gender,
+      bio: userData.bio,
+      default_mode: userData.default_mode,
+      created_at: userData.created_at,
+      preferences: userData.preferences || null,
+      photos: userData.photos || null,
     };
   }
 

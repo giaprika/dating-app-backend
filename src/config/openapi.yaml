@@ -857,6 +857,23 @@ paths:
                       data:
                         $ref: "#/components/schemas/Photo"
 
+  /api/users/avatar:
+    get:
+      summary: Get avatar
+      tags: [User Photos]
+      responses:
+        "200":
+          description: Avatar retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Photo"
+
 components:
   securitySchemes:
     bearerAuth:
