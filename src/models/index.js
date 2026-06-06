@@ -6,6 +6,7 @@ import Match from "./Match.js";
 import Message from "./Message.js";
 import DeviceToken from "./DeviceToken.js";
 import AnonymousMatchingQueue from "./AnonymousMatchingQueue.js";
+import MatchUpgradeRequest from "./MatchUpgradeRequest.js";
 
 // Define relationships
 User.hasMany(UserPhoto, { foreignKey: "user_id", as: "photos" });
@@ -40,6 +41,21 @@ User.hasMany(AnonymousMatchingQueue, {
 });
 AnonymousMatchingQueue.belongsTo(User, { foreignKey: "actor_id" });
 
+Match.hasMany(MatchUpgradeRequest, {
+  foreignKey: "match_id",
+  as: "upgradeRequests",
+});
+MatchUpgradeRequest.belongsTo(Match, { foreignKey: "match_id" });
+
+User.hasMany(MatchUpgradeRequest, {
+  foreignKey: "requester_id",
+  as: "sentUpgradeRequests",
+});
+MatchUpgradeRequest.belongsTo(User, {
+  foreignKey: "requester_id",
+  as: "requester",
+});
+
 export {
   User,
   UserPhoto,
@@ -49,4 +65,5 @@ export {
   Message,
   DeviceToken,
   AnonymousMatchingQueue,
+  MatchUpgradeRequest,
 };

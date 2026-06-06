@@ -4,6 +4,7 @@ import UserRepository from "../repositories/UserRepository.js";
 import DeviceTokenRepository from "../repositories/DeviceTokenRepository.js";
 import UserPreferenceRepository from "../repositories/UserPreferenceRepository.js";
 import AnonymousMatchingQueueRepository from "../repositories/AnonymousMatchingQueueRepository.js";
+import MatchUpgradeRequestRepository from "../repositories/MatchUpgradeRequestRepository.js";
 import NotificationService from "./NotificationService.js";
 import { emitToUser } from "../config/socketio.js";
 
@@ -78,7 +79,7 @@ class MatchService {
       throw new Error("You do not have access to this match");
     }
 
-    // Fetch unread messages and last message (same as getUserMatches)
+    // Fetch unread messages and last message
     const unreadMessages = await MessageRepository.findUnreadMessages(
       matchId,
       currentUserId,
@@ -92,10 +93,14 @@ class MatchService {
       messageOffset,
     );
 
+    const pendingUpgradeRequest =
+      await MatchUpgradeRequestRepository.findPendingRequest(matchId);
+
     await MessageRepository.markMatchMessagesAsRead(matchId, currentUserId);
 
     return {
       ...match.toJSON(),
+      pendingUpgradeRequest: pendingUpgradeRequest || null,
       unreadMessages: unreadMessages,
       unreadCount: unreadMessages.length,
       lastMessage: lastMessage,
@@ -326,6 +331,96 @@ class MatchService {
       queueId: queueEntry.queue_id,
       message:
         "Added to anonymous matching queue. Waiting for a match (30 seconds timeout)...",
+    };
+  }
+
+  async requestMatchUpgrade(matchId, requesterId) {
+    const match = await MatchRepository.findById(matchId);
+
+    if (!match) throw new Error("Match not found");
+    if (!match.is_active) throw new Error("Match is inactive");
+    if (match.match_mode === "traditional")
+      throw new Error("Match is already in traditional mode");
+
+    const isUserInMatch =
+      match.user1_id === requesterId || match.user2_id === requesterId;
+    if (!isUserInMatch) throw new Error("You are not part of this match");
+
+    const existingRequest =
+      await MatchUpgradeRequestRepository.findPendingRequest(matchId);
+    if (existingRequest) {
+      if (existingRequest.requester_id === requesterId) {
+        throw new Error("You have already sent an upgrade request");
+      } else {
+        throw new Error(
+          "The other user has already sent a request. Please respond to it.",
+        );
+      }
+    }
+
+    const request = await MatchUpgradeRequestRepository.create({
+      match_id: matchId,
+      requester_id: requesterId,
+      status: "pending",
+    });
+
+    const receiverId =
+      match.user1_id === requesterId ? match.user2_id : match.user1_id;
+
+    try {
+      emitToUser(receiverId, "upgrade_requested", {
+        matchId,
+        requestId: request.request_id,
+      });
+    } catch (e) {
+      console.warn("Failed to emit upgrade request notification", e.message);
+    }
+
+    return request;
+  }
+
+  async respondToUpgradeRequest(matchId, userId, status) {
+    if (!["accepted", "rejected"].includes(status)) {
+      throw new Error("Invalid status. Must be 'accepted' or 'rejected'");
+    }
+
+    const match = await MatchRepository.findById(matchId);
+    if (!match) throw new Error("Match not found");
+
+    const isUserInMatch =
+      match.user1_id === userId || match.user2_id === userId;
+    if (!isUserInMatch) throw new Error("You are not part of this match");
+
+    const pendingRequest =
+      await MatchUpgradeRequestRepository.findPendingRequest(matchId);
+    if (!pendingRequest) {
+      throw new Error("No pending upgrade request found for this match");
+    }
+
+    if (pendingRequest.requester_id === userId) {
+      throw new Error("You cannot respond to your own request");
+    }
+
+    const updatedRequest = await MatchUpgradeRequestRepository.updateStatus(
+      pendingRequest.request_id,
+      status,
+    );
+
+    if (status === "accepted") {
+      await MatchRepository.update(matchId, { match_mode: "traditional" });
+
+      try {
+        emitToUser(pendingRequest.requester_id, "upgrade_accepted", {
+          matchId,
+        });
+      } catch (e) {
+        console.warn("Failed to emit upgrade accepted notification", e.message);
+      }
+    }
+
+    return {
+      request: updatedRequest,
+      match_mode: status === "accepted" ? "traditional" : "anonymous",
     };
   }
 }

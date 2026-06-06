@@ -37,4 +37,17 @@ router.delete(
   MatchController.deleteMatch.bind(MatchController),
 );
 
+router.post(
+  "/:matchId/upgrade-request",
+  authenticateToken,
+  MatchController.requestUpgrade.bind(MatchController),
+);
+
+// PATCH routes - Phản hồi yêu cầu (Chấp nhận hoặc Từ chối)
+router.patch(
+  "/:matchId/upgrade-request",
+  authenticateToken,
+  MatchController.respondToUpgrade.bind(MatchController),
+);
+
 export default router;

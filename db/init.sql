@@ -5,6 +5,7 @@
 CREATE TYPE gender_enum AS ENUM ('male', 'female', 'other');
 CREATE TYPE match_mode_enum AS ENUM ('traditional', 'anonymous');
 CREATE TYPE action_type_enum AS ENUM ('LIKE', 'PASS');
+CREATE TYPE request_status_enum AS ENUM ('pending', 'accepted', 'rejected');
 
 -- Users Table
 CREATE TABLE users (
@@ -137,6 +138,26 @@ CREATE TABLE anonymous_matching_queue (
     )
 );
 
+CREATE TABLE match_upgrade_requests (
+  request_id SERIAL PRIMARY KEY,
+  match_id INT NOT NULL REFERENCES matches(match_id) ON DELETE CASCADE,
+  requester_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  status request_status_enum DEFAULT 'pending',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  -- Đảm bảo mỗi người dùng chỉ có 1 yêu cầu trên mỗi match để tránh spam
+  CONSTRAINT unique_match_requester UNIQUE(match_id, requester_id)
+);
+
+CREATE INDEX idx_match_upgrade_match_id ON match_upgrade_requests(match_id);
+CREATE INDEX idx_match_upgrade_requester_id ON match_upgrade_requests(requester_id);
+CREATE INDEX idx_match_upgrade_status ON match_upgrade_requests(status);
+
+CREATE TRIGGER update_match_upgrade_requests_updated_at 
+BEFORE UPDATE ON match_upgrade_requests
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 CREATE INDEX idx_anonymous_queue_active
 ON anonymous_matching_queue(is_active);
 
@@ -180,6 +201,32 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Hàm kiểm tra tính hợp lệ của người yêu cầu
+CREATE OR REPLACE FUNCTION check_valid_requester()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM matches
+    WHERE match_id = NEW.match_id
+      AND (
+        user1_id = NEW.requester_id OR
+        user2_id = NEW.requester_id
+      )
+  ) THEN
+    RAISE EXCEPTION 'Requester is not part of this match';
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Gắn trigger vào bảng match_upgrade_requests
+CREATE TRIGGER trg_check_valid_requester
+BEFORE INSERT OR UPDATE ON match_upgrade_requests
+FOR EACH ROW
+EXECUTE FUNCTION check_valid_requester();
+
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -194,6 +241,7 @@ COMMENT ON TABLE interactions IS 'User interactions (likes/passes)';
 COMMENT ON TABLE matches IS 'Mutual matches between users';
 COMMENT ON TABLE messages IS 'Messages between matched users';
 COMMENT ON TABLE device_tokens IS 'Push notification device tokens for mobile/web clients';
+COMMENT ON TABLE match_upgrade_requests IS 'Requests to upgrade an anonymous match to traditional mode';
 
 COMMENT ON COLUMN users.default_mode IS 'Default matching mode: traditional or anonymous';
 COMMENT ON COLUMN interactions.interaction_mode IS 'Mode in which interaction occurred';

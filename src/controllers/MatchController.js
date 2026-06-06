@@ -218,6 +218,98 @@ class MatchController {
       res.status(500).json(ResponseUtil.error(error.message, 500));
     }
   }
+
+  async requestUpgrade(req, res) {
+    try {
+      const { matchId } = req.params;
+      const currentUserId = req.user?.id;
+
+      if (!currentUserId) {
+        return res
+          .status(401)
+          .json(ResponseUtil.error("User not authenticated", 401));
+      }
+
+      if (!matchId || isNaN(matchId)) {
+        return res
+          .status(400)
+          .json(ResponseUtil.error("Invalid match ID", 400));
+      }
+
+      const request = await MatchService.requestMatchUpgrade(
+        parseInt(matchId),
+        currentUserId,
+      );
+      res
+        .status(201)
+        .json(
+          ResponseUtil.success(
+            request,
+            "Upgrade request sent successfully",
+            201,
+          ),
+        );
+    } catch (error) {
+      if (
+        error.message.includes("already") ||
+        error.message.includes("not part of this match")
+      ) {
+        return res.status(400).json(ResponseUtil.error(error.message, 400));
+      }
+      if (error.message === "Match not found") {
+        return res.status(404).json(ResponseUtil.error(error.message, 404));
+      }
+      res.status(500).json(ResponseUtil.error(error.message, 500));
+    }
+  }
+
+  async respondToUpgrade(req, res) {
+    try {
+      const { matchId } = req.params;
+      const { status } = req.body; // Expects 'accepted' or 'rejected'
+      const currentUserId = req.user?.id;
+
+      if (!currentUserId) {
+        return res
+          .status(401)
+          .json(ResponseUtil.error("User not authenticated", 401));
+      }
+
+      if (!status || !["accepted", "rejected"].includes(status)) {
+        return res
+          .status(400)
+          .json(
+            ResponseUtil.error("Status must be 'accepted' or 'rejected'", 400),
+          );
+      }
+
+      const result = await MatchService.respondToUpgradeRequest(
+        parseInt(matchId),
+        currentUserId,
+        status,
+      );
+      res
+        .status(200)
+        .json(
+          ResponseUtil.success(
+            result,
+            `Upgrade request ${status} successfully`,
+            200,
+          ),
+        );
+    } catch (error) {
+      if (error.message.includes("not found")) {
+        return res.status(404).json(ResponseUtil.error(error.message, 404));
+      }
+      if (
+        error.message.includes("cannot respond") ||
+        error.message.includes("not part of this match")
+      ) {
+        return res.status(403).json(ResponseUtil.error(error.message, 403));
+      }
+      res.status(500).json(ResponseUtil.error(error.message, 500));
+    }
+  }
 }
 
 export default new MatchController();
