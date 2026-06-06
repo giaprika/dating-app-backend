@@ -119,9 +119,16 @@ class UserDiscoveryRepository {
         {
           model: UserPhoto,
           as: "photos",
-          where: { is_primary: true },
-          attributes: ["photo_id", "image_url", "is_primary"],
+          attributes: [
+            "photo_id",
+            "image_url",
+            "is_primary",
+            "display_order",
+            "created_at",
+          ],
           required: false,
+          separate: true,
+          order: [["display_order", "ASC"]],
         },
       ],
       attributes: [
