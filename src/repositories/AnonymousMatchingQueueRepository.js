@@ -90,6 +90,18 @@ class AnonymousMatchingQueueRepository {
     );
   }
 
+  async deactivateByActorId(actorId) {
+    return await AnonymousMatchingQueue.update(
+      { is_active: false },
+      {
+        where: {
+          actor_id: actorId,
+          is_active: true,
+        },
+      },
+    );
+  }
+
   async findExpiredEntries() {
     const now = new Date();
     return await AnonymousMatchingQueue.findAll({

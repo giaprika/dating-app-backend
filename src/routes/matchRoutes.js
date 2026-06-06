@@ -24,6 +24,12 @@ router.post(
   MatchController.matchAnonymous.bind(MatchController),
 );
 
+router.delete(
+  "/anonymous/queue",
+  authenticateToken,
+  MatchController.cancelAnonymousMatch.bind(MatchController),
+);
+
 router.post(
   "/:matchId/messages",
   authenticateToken,

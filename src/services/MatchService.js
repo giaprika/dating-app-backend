@@ -334,6 +334,22 @@ class MatchService {
     };
   }
 
+  async cancelAnonymousMatch(currentUserId) {
+    const existingQueueEntry =
+      await AnonymousMatchingQueueRepository.findByActorId(currentUserId);
+
+    if (!existingQueueEntry) {
+      throw new Error("No active anonymous matching queue found for this user");
+    }
+
+    await AnonymousMatchingQueueRepository.deactivateByActorId(currentUserId);
+
+    return {
+      status: "cancelled",
+      message: "Anonymous matching queue cancelled successfully",
+    };
+  }
+
   async requestMatchUpgrade(matchId, requesterId) {
     const match = await MatchRepository.findById(matchId);
 

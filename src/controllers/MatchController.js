@@ -219,6 +219,30 @@ class MatchController {
     }
   }
 
+  async cancelAnonymousMatch(req, res) {
+    try {
+      const currentUserId = req.user?.id;
+
+      if (!currentUserId) {
+        return res
+          .status(401)
+          .json(ResponseUtil.error("User not authenticated", 401));
+      }
+
+      const result = await MatchService.cancelAnonymousMatch(currentUserId);
+
+      res.status(200).json(ResponseUtil.success(result, result.message, 200));
+    } catch (error) {
+      console.error("[cancelAnonymousMatch] Error:", error.message);
+
+      if (error.message.includes("No active")) {
+        return res.status(404).json(ResponseUtil.error(error.message, 404));
+      }
+
+      res.status(500).json(ResponseUtil.error(error.message, 500));
+    }
+  }
+
   async requestUpgrade(req, res) {
     try {
       const { matchId } = req.params;
