@@ -40,6 +40,16 @@ pids
 tmp/
 temp/
 
+# Python virtual environment
+venv/
+.venv/
+env/
+.env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
 # md
 API_DOCUMENTATION.md
 Dating_App_Postman.postman_collection.json
