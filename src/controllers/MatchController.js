@@ -157,7 +157,7 @@ class MatchController {
 
       res
         .status(200)
-        .json(ResponseUtil.success(null, "Match deleted successfully", 200));
+        .json(ResponseUtil.success({}, "Match deleted successfully", 200));
     } catch (error) {
       if (error.message.includes("not found")) {
         return res.status(404).json(ResponseUtil.error(error.message, 404));
