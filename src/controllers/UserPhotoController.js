@@ -39,6 +39,7 @@ class UserPhotoController {
       }
 
       const result = await UserPhotoService.createUserPhoto(userId, req.body);
+      console.log("photo:", result);
 
       res
         .status(201)

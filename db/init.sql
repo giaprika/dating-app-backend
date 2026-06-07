@@ -37,6 +37,9 @@ CREATE TABLE user_photos (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE user_photos 
+ADD COLUMN is_sfw BOOLEAN DEFAULT true;
+
 CREATE INDEX idx_user_photos_user_id ON user_photos(user_id);
 CREATE INDEX idx_user_photos_primary ON user_photos(user_id, is_primary);
 

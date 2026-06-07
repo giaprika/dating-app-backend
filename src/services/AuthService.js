@@ -3,6 +3,7 @@ import UserPhotoRepository from "../repositories/UserPhotoRepository.js";
 import UserPreferenceRepository from "../repositories/UserPreferenceRepository.js";
 import JwtUtil from "../utils/jwtUtil.js";
 import { sequelize } from "../config/database.js";
+import { checkImageSafety } from "../utils/checkImage.js";
 
 class AuthService {
   async register(userData) {
@@ -29,12 +30,14 @@ class AuthService {
       );
 
       // 2. Create avatar
+      const isSafe = await checkImageSafety(userData.image_url);
       if (userData.image_url) {
         await UserPhotoRepository.create(
           {
             user_id: user.user_id,
             image_url: userData.image_url,
             is_primary: true,
+            is_sfw: isSafe,
             display_order: 1,
           },
           transaction,

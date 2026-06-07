@@ -65,7 +65,7 @@ class DeviceTokenController {
       res
         .status(200)
         .json(
-          ResponseUtil.success(null, "Device unregistered successfully", 200),
+          ResponseUtil.success({}, "Device unregistered successfully", 200),
         );
     } catch (error) {
       res.status(400).json(ResponseUtil.error(error.message, 400));

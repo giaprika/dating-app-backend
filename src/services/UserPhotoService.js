@@ -1,4 +1,5 @@
 import UserPhotoRepository from "../repositories/UserPhotoRepository.js";
+import { checkImageSafety } from "../utils/checkImage.js";
 
 class UserPhotoService {
   validatePhotoData(photoData) {
@@ -59,8 +60,12 @@ class UserPhotoService {
       }
     }
 
+    const isSafe = await checkImageSafety(payload.image_url);
+    console.log("isSafe:", isSafe);
+
     const createdPhoto = await UserPhotoRepository.create({
       user_id: userId,
+      is_sfw: isSafe,
       ...payload,
     });
 

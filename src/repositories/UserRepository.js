@@ -97,6 +97,7 @@ class UserRepository {
             "is_primary",
             "display_order",
             "created_at",
+            "is_sfw",
           ],
           required: false,
           separate: true,
